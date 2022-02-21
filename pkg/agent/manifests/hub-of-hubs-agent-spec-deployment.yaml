@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leaf-hub-spec-sync
+  namespace: open-cluster-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: leaf-hub-spec-sync
+  template:
+    metadata:
+      labels:
+        name: leaf-hub-spec-sync
+    spec:
+      serviceAccountName: leaf-hub-spec-sync
+      containers:
+        - name: leaf-hub-spec-sync
+          image: quay.io/open-cluster-management-hub-of-hubs/leaf-hub-spec-sync:v0.3.1
+          args:
+            - '--zap-devel=true'
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                 apiVersion: v1
+                 fieldPath: metadata.namespace
+            - name: LH_ID
+              value: "$LH_ID"
+            - name: TRANSPORT_TYPE
+              value: "kafka"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "$KAFKA_BOOTSTRAP_SERVERS"
+            - name: KAFKA_TOPIC
+              value: "spec"
+            - name: KAFKA_SSL_CA
+              value: "$KAFKA_SSL_CA"
+            - name: SYNC_SERVICE_PROTOCOL
+              value: "http"
+            - name: SYNC_SERVICE_HOST
+              value: sync-service-ess.sync-service.svc.cluster.local
+            - name: SYNC_SERVICE_PORT
+              value: "$SYNC_SERVICE_PORT"
+            - name: SYNC_SERVICE_POLLING_INTERVAL
+              value: "5"
+            - name: K8S_CLIENTS_POOL_SIZE
+              value: "$K8S_CLIENTS_POOL_SIZE"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                 apiVersion: v1
+                 fieldPath: metadata.namespace

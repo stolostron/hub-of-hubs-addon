@@ -1,1 +1,2 @@
-# hub-of-hubs-addon
+# Hub of Hubs Addon
+

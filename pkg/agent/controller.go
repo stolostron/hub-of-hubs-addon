@@ -22,6 +22,10 @@ import (
 	worklisterv1 "open-cluster-management.io/api/client/work/listers/work/v1"
 )
 
+const (
+	HOH_HUB_CLUSTER_MCH = "hoh-hub-cluster-mch"
+)
+
 // hohAgentController reconciles instances of ManagedCluster on the hub.
 type hohAgentController struct {
 	dynamicClient dynamic.Interface
@@ -86,7 +90,7 @@ func NewHohAgentController(
 
 func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
 	managedClusterName := syncCtx.QueueKey()
-	klog.V(2).Infof("Reconciling ManagedCluster %s", managedClusterName)
+	klog.V(2).Infof("Reconciling HoH agent for %s", managedClusterName)
 	_, err := c.clusterLister.Get(managedClusterName)
 	if errors.IsNotFound(err) {
 		// Spoke cluster not found, could have been deleted, delete manifestwork.
@@ -97,29 +101,57 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		return err
 	}
 
-	bootstrapServers, cert, err := c.getKafkaSSLCA()
+	// if mch is running, then install hoh agent
+	mch, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + HOH_HUB_CLUSTER_MCH)
 	if err != nil {
 		return err
 	}
 
-	desiredAgent, err := CreateHohAgentManifestwork(managedClusterName, bootstrapServers, cert)
-	if err != nil {
-		return err
-	}
+	// if the csv PHASE is Succeeded, then create mch manifestwork to install Hub
+	for _, conditions := range mch.Status.ResourceStatus.Manifests {
+		if conditions.ResourceMeta.Kind == "MultiClusterHub" {
+			for _, value := range conditions.StatusFeedbacks.Values {
+				if value.Name == "state" && *value.Value.String == "Running" {
+					bootstrapServers, cert, err := c.getKafkaSSLCA()
+					if err != nil {
+						return err
+					}
 
-	_, err = c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + HOH_AGENT)
-	if errors.IsNotFound(err) {
-		klog.V(2).Infof("creating hoh agent manifestwork in %s namespace", managedClusterName)
-		_, err := c.workClient.ManifestWorks(managedClusterName).
-			Create(ctx, desiredAgent, metav1.CreateOptions{})
-		if err != nil {
-			klog.V(2).ErrorS(err, "failed to create hoh agent manifestwork", "manifestwork is", desiredAgent)
-			return err
+					desiredAgent, err := CreateHohAgentManifestwork(managedClusterName, bootstrapServers, cert)
+					if err != nil {
+						return err
+					}
+
+					agent, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + HOH_AGENT)
+					if errors.IsNotFound(err) {
+						klog.V(2).Infof("creating hoh agent manifestwork in %s namespace", managedClusterName)
+						_, err := c.workClient.ManifestWorks(managedClusterName).
+							Create(ctx, desiredAgent, metav1.CreateOptions{})
+						if err != nil {
+							klog.V(2).ErrorS(err, "failed to create hoh agent manifestwork", "manifestwork is", desiredAgent)
+							return err
+						}
+						return nil
+					}
+					if err != nil {
+						return err
+					}
+
+					updated, err := EnsureManifestWork(agent, desiredAgent)
+					if err != nil {
+						return err
+					}
+					if updated {
+						desiredAgent.ObjectMeta.ResourceVersion = agent.ObjectMeta.ResourceVersion
+						_, err := c.workClient.ManifestWorks(managedClusterName).
+							Update(ctx, desiredAgent, metav1.UpdateOptions{})
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
-		return nil
-	}
-	if err != nil {
-		return err
 	}
 
 	return nil

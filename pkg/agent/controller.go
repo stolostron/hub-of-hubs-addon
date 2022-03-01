@@ -62,11 +62,12 @@ func NewHohAgentController(
 				if err != nil {
 					return false
 				}
-				// only enqueue when the hoh=enabled managed cluster is changed
-				if accessor.GetLabels()["hoh"] == "enabled" {
+				// enqueue all managed cluster except for local-cluster and hoh=disabled
+				if accessor.GetLabels()["hoh"] == "disabled" || accessor.GetName() == "local-cluster" {
+					return false
+				} else {
 					return true
 				}
-				return false
 			}, clusterInformer.Informer()).
 		WithFilteredEventsInformersQueueKeyFunc(
 			func(obj runtime.Object) string {
@@ -107,7 +108,7 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		return err
 	}
 
-	// if the csv PHASE is Succeeded, then create mch manifestwork to install Hub
+	// if the MCH is Running, then create hoh agent manifestwork to install HoH agent
 	for _, conditions := range mch.Status.ResourceStatus.Manifests {
 		if conditions.ResourceMeta.Kind == "MultiClusterHub" {
 			for _, value := range conditions.StatusFeedbacks.Values {

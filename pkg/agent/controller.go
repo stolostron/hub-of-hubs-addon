@@ -52,23 +52,26 @@ func NewHohAgentController(
 		eventRecorder: recorder.WithComponentSuffix("hub-of-hubs-addon-controller"),
 	}
 	return factory.New().
-		WithFilteredEventsInformersQueueKeyFunc(
-			func(obj runtime.Object) string {
-				accessor, _ := meta.Accessor(obj)
-				return accessor.GetName()
-			},
-			func(obj interface{}) bool {
-				accessor, err := meta.Accessor(obj)
-				if err != nil {
-					return false
-				}
-				// enqueue all managed cluster except for local-cluster and hoh=disabled
-				if accessor.GetLabels()["hoh"] == "disabled" || accessor.GetName() == "local-cluster" {
-					return false
-				} else {
-					return true
-				}
-			}, clusterInformer.Informer()).
+		// May watching the managed cluster if we support import ACM hub cluster in the future
+		// Right now, we focus on import OCP cluster. just wait for mch manifestwork retrun running
+		// then create hoh agent
+		// WithFilteredEventsInformersQueueKeyFunc(
+		// 	func(obj runtime.Object) string {
+		// 		accessor, _ := meta.Accessor(obj)
+		// 		return accessor.GetName()
+		// 	},
+		// 	func(obj interface{}) bool {
+		// 		accessor, err := meta.Accessor(obj)
+		// 		if err != nil {
+		// 			return false
+		// 		}
+		// 		// enqueue all managed cluster except for local-cluster and hoh=disabled
+		// 		if accessor.GetLabels()["hoh"] == "disabled" || accessor.GetName() == "local-cluster" {
+		// 			return false
+		// 		} else {
+		// 			return true
+		// 		}
+		// 	}, clusterInformer.Informer()).
 		WithFilteredEventsInformersQueueKeyFunc(
 			func(obj runtime.Object) string {
 				accessor, _ := meta.Accessor(obj)
@@ -79,8 +82,9 @@ func NewHohAgentController(
 				if err != nil {
 					return false
 				}
-				// only enqueue when the hoh=enabled managed cluster is changed
-				if accessor.GetName() == accessor.GetNamespace()+"-"+HOH_AGENT {
+				// only enqueue if hoh-agent is changed or hoh-hub-cluster-mch is changed
+				if accessor.GetName() == accessor.GetNamespace()+"-"+HOH_AGENT ||
+					accessor.GetName() == accessor.GetNamespace()+"-"+HOH_HUB_CLUSTER_MCH {
 					return true
 				}
 				return false
@@ -150,6 +154,7 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 							return err
 						}
 					}
+					return nil
 				}
 			}
 		}

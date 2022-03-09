@@ -16,13 +16,16 @@ spec:
     spec:
       serviceAccountName: hub-of-hubs-addon-controller-sa
       containers:
-      - name: hub-of-hubs-addon-controller
-        image: quay.io/clyang82/hub-of-hubs-addon-controller:v0.1.0
-        imagePullPolicy: Always
-        args:
+      - args:
           - "/hub-of-hubs-addon-controller"
           - "controller"
           - "--v=2"
+        env:
+        - name: HUB_OF_HUBS_VERSION
+          value: "$TAG"
+        name: hub-of-hubs-addon-controller
+        image: quay.io/open-cluster-management-hub-of-hubs/hub-of-hubs-addon-controller:latest
+        imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

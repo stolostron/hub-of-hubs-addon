@@ -19,6 +19,11 @@ const (
 
 func CreateHohAgentManifestwork(namespace, boostrapServer, SSLCA string) (*workv1.ManifestWork, error) {
 
+	hoh_version := "latest"
+	if os.Getenv("HUB_OF_HUBS_VERSION") != "" {
+		hoh_version = os.Getenv("HUB_OF_HUBS_VERSION")
+	}
+
 	entries, err := os.ReadDir("manifests")
 	if err != nil {
 		return nil, err
@@ -32,6 +37,7 @@ func CreateHohAgentManifestwork(namespace, boostrapServer, SSLCA string) (*workv
 		fileStr := strings.ReplaceAll(string(file), "$LH_ID", namespace)
 		fileStr = strings.ReplaceAll(fileStr, "$KAFKA_BOOTSTRAP_SERVERS", boostrapServer)
 		fileStr = strings.ReplaceAll(fileStr, "$KAFKA_SSL_CA", SSLCA)
+		fileStr = strings.ReplaceAll(fileStr, "-sync:latest", "-sync:"+hoh_version)
 		fileJson, err := yaml.YAMLToJSON([]byte(fileStr))
 		if err != nil {
 			return nil, err
@@ -50,6 +56,9 @@ func CreateHohAgentManifestwork(namespace, boostrapServer, SSLCA string) (*workv
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace + "-" + HOH_AGENT,
 			Namespace: namespace,
+			Labels: map[string]string{
+				"hub-of-hubs.open-cluster-management.io/managed-by": "hoh-addon",
+			},
 		},
 		Spec: workv1.ManifestWorkSpec{
 			Workload: workv1.ManifestsTemplate{

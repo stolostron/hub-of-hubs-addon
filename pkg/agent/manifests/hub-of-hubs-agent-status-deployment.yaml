@@ -16,7 +16,7 @@ spec:
       serviceAccountName: leaf-hub-status-sync
       containers:
         - name: leaf-hub-status-sync
-          image: quay.io/open-cluster-management-hub-of-hubs/leaf-hub-status-sync:v0.3.1
+          image: quay.io/open-cluster-management-hub-of-hubs/leaf-hub-status-sync:latest
           args:
             - '--zap-devel=true'
           imagePullPolicy: Always

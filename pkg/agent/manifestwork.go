@@ -13,10 +13,6 @@ import (
 	workv1 "open-cluster-management.io/api/work/v1"
 )
 
-const (
-	HOH_AGENT = "hoh-agent"
-)
-
 func CreateHohAgentManifestwork(namespace, boostrapServer, SSLCA string) (*workv1.ManifestWork, error) {
 
 	hoh_version := "latest"
@@ -54,7 +50,7 @@ func CreateHohAgentManifestwork(namespace, boostrapServer, SSLCA string) (*workv
 
 	return &workv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namespace + "-" + HOH_AGENT,
+			Name:      namespace + "-" + hohAgent,
 			Namespace: namespace,
 			Labels: map[string]string{
 				"hub-of-hubs.open-cluster-management.io/managed-by": "hoh-addon",

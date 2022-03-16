@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	HOH_HUB_CLUSTER_MCH = "hoh-hub-cluster-mch"
+	hohHubClusterMCH = "hoh-hub-cluster-mch"
+	hohAgent         = "hoh-agent"
 )
 
 // hohAgentController reconciles instances of ManagedCluster on the hub.
@@ -52,26 +53,23 @@ func NewHohAgentController(
 		eventRecorder: recorder.WithComponentSuffix("hub-of-hubs-addon-controller"),
 	}
 	return factory.New().
-		// May watching the managed cluster if we support import ACM hub cluster in the future
-		// Right now, we focus on import OCP cluster. just wait for mch manifestwork retrun running
-		// then create hoh agent
-		// WithFilteredEventsInformersQueueKeyFunc(
-		// 	func(obj runtime.Object) string {
-		// 		accessor, _ := meta.Accessor(obj)
-		// 		return accessor.GetName()
-		// 	},
-		// 	func(obj interface{}) bool {
-		// 		accessor, err := meta.Accessor(obj)
-		// 		if err != nil {
-		// 			return false
-		// 		}
-		// 		// enqueue all managed cluster except for local-cluster and hoh=disabled
-		// 		if accessor.GetLabels()["hoh"] == "disabled" || accessor.GetName() == "local-cluster" {
-		// 			return false
-		// 		} else {
-		// 			return true
-		// 		}
-		// 	}, clusterInformer.Informer()).
+		WithFilteredEventsInformersQueueKeyFunc(
+			func(obj runtime.Object) string {
+				accessor, _ := meta.Accessor(obj)
+				return accessor.GetName()
+			},
+			func(obj interface{}) bool {
+				accessor, err := meta.Accessor(obj)
+				if err != nil {
+					return false
+				}
+				// enqueue all managed cluster except for local-cluster and hoh=disabled
+				if accessor.GetLabels()["hoh"] == "disabled" || accessor.GetName() == "local-cluster" {
+					return false
+				} else {
+					return true
+				}
+			}, clusterInformer.Informer()).
 		WithFilteredEventsInformersQueueKeyFunc(
 			func(obj runtime.Object) string {
 				accessor, _ := meta.Accessor(obj)
@@ -83,8 +81,8 @@ func NewHohAgentController(
 					return false
 				}
 				// only enqueue if hoh-agent is changed or hoh-hub-cluster-mch is changed
-				if accessor.GetName() == accessor.GetNamespace()+"-"+HOH_AGENT ||
-					accessor.GetName() == accessor.GetNamespace()+"-"+HOH_HUB_CLUSTER_MCH {
+				if accessor.GetName() == accessor.GetNamespace()+"-"+hohAgent ||
+					accessor.GetName() == accessor.GetNamespace()+"-"+hohHubClusterMCH {
 					return true
 				}
 				return false
@@ -96,18 +94,18 @@ func NewHohAgentController(
 func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
 	managedClusterName := syncCtx.QueueKey()
 	klog.V(2).Infof("Reconciling HoH agent for %s", managedClusterName)
-	_, err := c.clusterLister.Get(managedClusterName)
-	if errors.IsNotFound(err) {
-		// Spoke cluster not found, could have been deleted, delete manifestwork.
-		// TODO: delete manifestwork
-		return nil
-	}
+	managedCluster, err := c.clusterLister.Get(managedClusterName)
 	if err != nil {
 		return err
 	}
+	if !managedCluster.DeletionTimestamp.IsZero() {
+		// the managed cluster is deleting, we should not re-apply the manifestwork
+		// wait for managedcluster-import-controller to clean up the manifestwork
+		return nil
+	}
 
 	// if mch is running, then install hoh agent
-	mch, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + HOH_HUB_CLUSTER_MCH)
+	mch, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + hohHubClusterMCH)
 	if err != nil {
 		return err
 	}
@@ -156,7 +154,7 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		return err
 	}
 
-	agent, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + HOH_AGENT)
+	agent, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + hohAgent)
 	if errors.IsNotFound(err) {
 		klog.V(2).Infof("creating hoh agent manifestwork in %s namespace", managedClusterName)
 		_, err := c.workClient.ManifestWorks(managedClusterName).

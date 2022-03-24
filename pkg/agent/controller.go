@@ -119,10 +119,11 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 	for _, conditions := range mch.Status.ResourceStatus.Manifests {
 		if conditions.ResourceMeta.Kind == "MultiClusterHub" {
 			for _, value := range conditions.StatusFeedbacks.Values {
-				if value.Name == "application-chart-sub-status" && *value.Value.String == "True" {
-					mchIsReadyNum++
-					continue
-				}
+				// no application-chart in 2.5
+				// if value.Name == "application-chart-sub-status" && *value.Value.String == "True" {
+				// 	mchIsReadyNum++
+				// 	continue
+				// }
 				if value.Name == "cluster-manager-cr-status" && *value.Value.String == "True" {
 					mchIsReadyNum++
 					continue
@@ -140,7 +141,7 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		}
 	}
 
-	if mchIsReadyNum != 3 {
+	if mchIsReadyNum != 2 {
 		return nil
 	}
 

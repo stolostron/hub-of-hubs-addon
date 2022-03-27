@@ -51,7 +51,13 @@ rules:
   - update
   - delete
 - apiGroups:
-  - app.k8s.io
+  - ""
+  resources:
+  - users
+  verbs:
+  - impersonate
+- apiGroups:
+  - "app.k8s.io"
   resources:
   - applications
   verbs:

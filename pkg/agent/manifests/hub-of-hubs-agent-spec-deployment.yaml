@@ -47,7 +47,7 @@ spec:
             - name: K8S_CLIENTS_POOL_SIZE
               value: "$K8S_CLIENTS_POOL_SIZE"
             - name: ENFORCE_HOH_RBAC
-              value: "true"
+              value: "$ENFORCE_HOH_RBAC"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

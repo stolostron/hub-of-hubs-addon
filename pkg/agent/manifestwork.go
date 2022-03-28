@@ -19,6 +19,10 @@ func CreateHohAgentManifestwork(namespace, boostrapServer, SSLCA string) (*workv
 	if os.Getenv("HUB_OF_HUBS_VERSION") != "" {
 		hoh_version = os.Getenv("HUB_OF_HUBS_VERSION")
 	}
+	enforce_hoh_rbac := "true"
+	if os.Getenv("ENFORCE_HOH_RBAC") != "" {
+		enforce_hoh_rbac = os.Getenv("ENFORCE_HOH_RBAC")
+	}
 
 	entries, err := os.ReadDir("manifests")
 	if err != nil {
@@ -33,6 +37,7 @@ func CreateHohAgentManifestwork(namespace, boostrapServer, SSLCA string) (*workv
 		fileStr := strings.ReplaceAll(string(file), "$LH_ID", namespace)
 		fileStr = strings.ReplaceAll(fileStr, "$KAFKA_BOOTSTRAP_SERVERS", boostrapServer)
 		fileStr = strings.ReplaceAll(fileStr, "$KAFKA_SSL_CA", SSLCA)
+		fileStr = strings.ReplaceAll(fileStr, "$ENFORCE_HOH_RBAC", enforce_hoh_rbac)
 		fileStr = strings.ReplaceAll(fileStr, "-sync:latest", "-sync:"+hoh_version)
 		fileJson, err := yaml.YAMLToJSON([]byte(fileStr))
 		if err != nil {

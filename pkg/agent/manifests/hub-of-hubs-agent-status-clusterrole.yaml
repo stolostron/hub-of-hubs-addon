@@ -35,13 +35,8 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - namespaces
-  verbs:
-  - create
-- apiGroups:
-  - ""
-  resources:
   - pods
+  - namespaces
   - configmaps
   - events
   verbs:

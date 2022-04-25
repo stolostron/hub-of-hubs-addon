@@ -103,46 +103,48 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		// wait for managedcluster-import-controller to clean up the manifestwork
 		return nil
 	}
+	// mch only installs in OpenShift cluster
+	if managedCluster.GetLabels()["vendor"] == "OpenShift" {
+		// if mch is running, then install hoh agent
+		mch, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + hohHubClusterMCH)
+		if err != nil {
+			return err
+		}
 
-	// if mch is running, then install hoh agent
-	mch, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + hohHubClusterMCH)
-	if err != nil {
-		return err
-	}
-
-	mchIsReadyNum := 0
-	// if the MCH is Running, then create hoh agent manifestwork to install HoH agent
-	// ideally, the mch status should be in Running state.
-	// but due to this bug - https://github.com/stolostron/backlog/issues/20555
-	// the mch status can be in Installing for a long time.
-	// so here just check the dependencies status is True, then install HoH agent
-	for _, conditions := range mch.Status.ResourceStatus.Manifests {
-		if conditions.ResourceMeta.Kind == "MultiClusterHub" {
-			for _, value := range conditions.StatusFeedbacks.Values {
-				// no application-chart in 2.5
-				// if value.Name == "application-chart-sub-status" && *value.Value.String == "True" {
-				// 	mchIsReadyNum++
-				// 	continue
-				// }
-				if value.Name == "cluster-manager-cr-status" && *value.Value.String == "True" {
-					mchIsReadyNum++
-					continue
-				}
-				// for ACM 2.5.
-				if value.Name == "multicluster-engine-status" && *value.Value.String == "True" {
-					mchIsReadyNum++
-					continue
-				}
-				if value.Name == "grc-sub-status" && *value.Value.String == "True" {
-					mchIsReadyNum++
-					continue
+		mchIsReadyNum := 0
+		// if the MCH is Running, then create hoh agent manifestwork to install HoH agent
+		// ideally, the mch status should be in Running state.
+		// but due to this bug - https://github.com/stolostron/backlog/issues/20555
+		// the mch status can be in Installing for a long time.
+		// so here just check the dependencies status is True, then install HoH agent
+		for _, conditions := range mch.Status.ResourceStatus.Manifests {
+			if conditions.ResourceMeta.Kind == "MultiClusterHub" {
+				for _, value := range conditions.StatusFeedbacks.Values {
+					// no application-chart in 2.5
+					// if value.Name == "application-chart-sub-status" && *value.Value.String == "True" {
+					// 	mchIsReadyNum++
+					// 	continue
+					// }
+					if value.Name == "cluster-manager-cr-status" && *value.Value.String == "True" {
+						mchIsReadyNum++
+						continue
+					}
+					// for ACM 2.5.
+					if value.Name == "multicluster-engine-status" && *value.Value.String == "True" {
+						mchIsReadyNum++
+						continue
+					}
+					if value.Name == "grc-sub-status" && *value.Value.String == "True" {
+						mchIsReadyNum++
+						continue
+					}
 				}
 			}
 		}
-	}
 
-	if mchIsReadyNum != 2 {
-		return nil
+		if mchIsReadyNum != 2 {
+			return nil
+		}
 	}
 
 	bootstrapServers, cert, err := c.getKafkaSSLCA()

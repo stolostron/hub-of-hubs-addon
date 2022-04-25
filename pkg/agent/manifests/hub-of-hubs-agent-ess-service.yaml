@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sync-service-ess
+  namespace: sync-service
+  labels:
+    name: sync-service-ess
+spec:
+  ports:
+  - port: 8090
+    name: http-port
+  selector:
+    name: sync-service-ess

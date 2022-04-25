@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/base64"
+	"os"
 
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
@@ -147,12 +148,24 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		}
 	}
 
-	bootstrapServers, cert, err := c.getKafkaSSLCA()
-	if err != nil {
-		return err
+	transport_type := "kafka"
+	if os.Getenv("TRANSPORT_TYPE") != "" {
+		transport_type = os.Getenv("TRANSPORT_TYPE")
+	}
+	var serverHost, cert string
+	if transport_type == "kafka" {
+		serverHost, cert, err = c.getKafkaSSLCA()
+		if err != nil {
+			return err
+		}
+	} else {
+		serverHost, err = c.getCSSHost()
+		if err != nil {
+			return err
+		}
 	}
 
-	desiredAgent, err := CreateHohAgentManifestwork(managedClusterName, bootstrapServers, cert)
+	desiredAgent, err := CreateHohAgentManifestwork(managedClusterName, transport_type, serverHost, cert)
 	if err != nil {
 		return err
 	}
@@ -206,4 +219,23 @@ func (c *hohAgentController) getKafkaSSLCA() (string, string, error) {
 	certificate := base64.RawStdEncoding.EncodeToString([]byte(certificates[0].(string)))
 	klog.V(2).Infof("Kafka bootstrap server is %s, certificate is %s", bootstrapServers, certificate)
 	return bootstrapServers, certificate, nil
+}
+
+func (c *hohAgentController) getCSSHost() (string, error) {
+	routeGVR := schema.GroupVersionResource{
+		Group:    "route.openshift.io",
+		Version:  "v1",
+		Resource: "routes",
+	}
+	//TODO: pass kafka namespace and name via environment variables
+	cssRoute, err := c.dynamicClient.Resource(routeGVR).Namespace("sync-service").
+		Get(context.TODO(), "sync-service-css", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	routeStatus := cssRoute.Object["status"].(map[string]interface{})
+	routeIngress := routeStatus["ingress"].([]interface{})
+	serverHost := routeIngress[0].(map[string]interface{})["host"].(string)
+	klog.V(2).Infof("css server is %s", serverHost)
+	return serverHost, nil
 }

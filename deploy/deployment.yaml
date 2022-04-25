@@ -25,6 +25,8 @@ spec:
           value: "$TAG"
         - name: ENFORCE_HOH_RBAC
           value: "$ENFORCE_HOH_RBAC"
+        - name: TRANSPORT_TYPE
+          value: "$TRANSPORT_TYPE"
         name: hub-of-hubs-addon-controller
         image: quay.io/open-cluster-management-hub-of-hubs/hub-of-hubs-addon-controller:latest
         imagePullPolicy: Always

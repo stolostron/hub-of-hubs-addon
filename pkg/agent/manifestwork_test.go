@@ -5,7 +5,7 @@ import (
 )
 
 func TestCreateHohAgentManifestwork(t *testing.T) {
-	agent, _ := CreateHohAgentManifestwork("test", "server", "ca")
+	agent, _ := CreateHohAgentManifestwork("test", "kafka", "server", "ca")
 	if agent.GetName() != "test-"+hohAgent {
 		t.Fatalf("error")
 	}

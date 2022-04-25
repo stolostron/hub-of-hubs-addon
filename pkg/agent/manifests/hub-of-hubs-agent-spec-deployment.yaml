@@ -29,7 +29,7 @@ spec:
             - name: LH_ID
               value: "$LH_ID"
             - name: TRANSPORT_TYPE
-              value: "kafka"
+              value: "$TRANSPORT_TYPE"
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: "$KAFKA_BOOTSTRAP_SERVERS"
             - name: KAFKA_TOPIC
@@ -41,7 +41,7 @@ spec:
             - name: SYNC_SERVICE_HOST
               value: sync-service-ess.sync-service.svc.cluster.local
             - name: SYNC_SERVICE_PORT
-              value: "$SYNC_SERVICE_PORT"
+              value: "8090"
             - name: SYNC_SERVICE_POLLING_INTERVAL
               value: "5"
             - name: K8S_CLIENTS_POOL_SIZE

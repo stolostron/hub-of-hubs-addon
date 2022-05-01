@@ -8,6 +8,10 @@ rules:
   resources:
   - managedclusters
   - managedclusters/finalizers
+  - placementdecisions
+  - placementdecisions/finalizers
+  - placements
+  - placements/finalizers
   verbs:
   - get
   - list
@@ -51,7 +55,11 @@ rules:
   - apps.open-cluster-management.io
   resources:
   - placementrules
-  - subscriptions
+  - placementrules/finalizers
+  - subscriptionstatuses
+  - subscriptionstatuses/finalizers
+  - subscriptionreports
+  - subscriptionreports/finalizers
   verbs:
   - get
   - list

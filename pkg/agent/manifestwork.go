@@ -46,7 +46,7 @@ func CreateHohAgentManifestwork(namespace, transport_type, serverHost, SSLCA str
 			fileStr = strings.ReplaceAll(fileStr, "$CSS_HOST", serverHost)
 		}
 		fileStr = strings.ReplaceAll(fileStr, "$ENFORCE_HOH_RBAC", enforce_hoh_rbac)
-		fileStr = strings.ReplaceAll(fileStr, "-sync:latest", "-sync:"+hoh_version)
+		fileStr = strings.ReplaceAll(fileStr, "hub-of-hubs-agent:latest", "hub-of-hubs-agent:"+hoh_version)
 		fileJson, err := yaml.YAMLToJSON([]byte(fileStr))
 		if err != nil {
 			return nil, err

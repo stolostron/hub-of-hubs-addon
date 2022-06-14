@@ -2,13 +2,16 @@ package agent
 
 import (
 	"context"
+	"embed"
 	"encoding/base64"
+	"fmt"
 	"os"
+	"strings"
+	"text/template"
 
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceapply"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,10 +26,26 @@ import (
 	worklisterv1 "open-cluster-management.io/api/client/work/listers/work/v1"
 )
 
+//go:embed manifests
+var manifestFS embed.FS
+
 const (
 	hohHubClusterMCH = "hoh-hub-cluster-mch"
 	hohAgent         = "hoh-agent"
+	hohAgentHosted   = "hoh-agent-hosted"
+	hohAgentMgt      = "hoh-agent-management"
 )
+
+type agentConfig struct {
+	AgentVersion         string
+	LeadHubID            string
+	EnableHoHRBAC        string
+	TransportType        string
+	KafkaBootstrapServer string
+	KafkaCA              string
+	CSSHost              string
+	HostedClusterName    string // for hypershift
+}
 
 // hohAgentController reconciles instances of ManagedCluster on the hub.
 type hohAgentController struct {
@@ -99,13 +118,38 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 	if err != nil {
 		return err
 	}
+
+	hostingClusterName, hostedClusterName := "", ""
+	annotations := managedCluster.GetAnnotations()
+	if val, ok := annotations["import.open-cluster-management.io/klusterlet-deploy-mode"]; ok && val == "Hosted" {
+		hostingClusterName, ok = annotations["import.open-cluster-management.io/hosting-cluster-name"]
+		if !ok || hostingClusterName == "" {
+			return fmt.Errorf("missing hosting-cluster-name in managed cluster.")
+		}
+		hypershiftdeploymentName, ok := annotations["cluster.open-cluster-management.io/hypershiftdeployment"]
+		if !ok || hypershiftdeploymentName == "" {
+			return fmt.Errorf("missing hypershiftdeployment name in managed cluster.")
+		}
+		splits := strings.Split(hypershiftdeploymentName, "/")
+		if len(splits) != 2 || splits[1] == "" {
+			return fmt.Errorf("bad hypershiftdeployment name in managed cluster.")
+		}
+		hostedClusterName = splits[1]
+	}
+
 	if !managedCluster.DeletionTimestamp.IsZero() {
 		// the managed cluster is deleting, we should not re-apply the manifestwork
 		// wait for managedcluster-import-controller to clean up the manifestwork
+		if hostingClusterName != "" { // for hypershift hosted leaf hub, remove the corresponding manifestworks from hypershift management cluster
+			if err := c.workClient.ManifestWorks(hostingClusterName).Delete(ctx, managedClusterName+"-"+hohAgentMgt, metav1.DeleteOptions{}); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
+
 	// mch only installs in OpenShift cluster
-	if managedCluster.GetLabels()["vendor"] == "OpenShift" {
+	if managedCluster.GetLabels()["vendor"] == "OpenShift" && hostingClusterName == "" {
 		// if mch is running, then install hoh agent
 		mch, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + hohHubClusterMCH)
 		if err != nil {
@@ -148,55 +192,87 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		}
 	}
 
-	transport_type := "kafka"
-	if os.Getenv("TRANSPORT_TYPE") != "" {
-		transport_type = os.Getenv("TRANSPORT_TYPE")
+	hohVersion := "latest"
+	if os.Getenv("HUB_OF_HUBS_VERSION") != "" {
+		hohVersion = os.Getenv("HUB_OF_HUBS_VERSION")
 	}
-	var serverHost, cert string
-	if transport_type == "kafka" {
-		serverHost, cert, err = c.getKafkaSSLCA()
+	enforceHoHRBAC := "false"
+	if os.Getenv("ENFORCE_HOH_RBAC") != "" {
+		enforceHoHRBAC = os.Getenv("ENFORCE_HOH_RBAC")
+	}
+	transportType := "kafka"
+	if os.Getenv("TRANSPORT_TYPE") != "" {
+		transportType = os.Getenv("TRANSPORT_TYPE")
+	}
+
+	agentConfigValues := &agentConfig{
+		AgentVersion:  hohVersion,
+		LeadHubID:     managedClusterName,
+		EnableHoHRBAC: enforceHoHRBAC,
+		TransportType: transportType,
+	}
+
+	if transportType == "kafka" {
+		serverHost, cert, err := c.getKafkaSSLCA()
+		if err != nil {
+			return err
+		}
+		agentConfigValues.KafkaBootstrapServer = serverHost
+		agentConfigValues.KafkaCA = cert
+	} else {
+		serverHost, err := c.getCSSHost()
+		if err != nil {
+			return err
+		}
+		agentConfigValues.CSSHost = serverHost
+	}
+
+	if hostedClusterName != "" {
+		agentConfigValues.HostedClusterName = "clusters-" + hostedClusterName
+	}
+
+	var tpl *template.Template
+	if transportType == "kafka" {
+		tpl, err = parseTemplates(manifestFS, "ess")
 		if err != nil {
 			return err
 		}
 	} else {
-		serverHost, err = c.getCSSHost()
+		tpl, err = parseTemplates(manifestFS, "")
 		if err != nil {
 			return err
 		}
 	}
 
-	desiredAgent, err := CreateHohAgentManifestwork(managedClusterName, transport_type, serverHost, cert)
-	if err != nil {
-		return err
-	}
-
-	agent, err := c.workLister.ManifestWorks(managedClusterName).Get(managedClusterName + "-" + hohAgent)
-	if errors.IsNotFound(err) {
-		klog.V(2).Infof("creating hoh agent manifestwork in %s namespace", managedClusterName)
-		_, err := c.workClient.ManifestWorks(managedClusterName).
-			Create(ctx, desiredAgent, metav1.CreateOptions{})
-		if err != nil {
-			klog.V(2).ErrorS(err, "failed to create hoh agent manifestwork", "manifestwork is", desiredAgent)
-			return err
-		}
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	updated, err := EnsureManifestWork(agent, desiredAgent)
-	if err != nil {
-		return err
-	}
-	if updated {
-		desiredAgent.ObjectMeta.ResourceVersion = agent.ObjectMeta.ResourceVersion
-		_, err := c.workClient.ManifestWorks(managedClusterName).
-			Update(ctx, desiredAgent, metav1.UpdateOptions{})
+	if hostingClusterName == "" { // for non-hypershift hosted leaf hub
+		agentManifestwork, err := CreateHohAgentManifestwork(tpl, agentConfigValues)
 		if err != nil {
 			return err
 		}
+
+		if err := applyManifestWork(ctx, c.workClient, c.workLister, agentManifestwork); err != nil {
+			return err
+		}
+	} else { // for hypershift hosted leaf hub
+		agentManifestworkOnHyperMgt, err := CreateHohAgentManifestworkOnHyperMgt(tpl, agentConfigValues, hostingClusterName)
+		if err != nil {
+			return err
+		}
+
+		if err := applyManifestWork(ctx, c.workClient, c.workLister, agentManifestworkOnHyperMgt); err != nil {
+			return err
+		}
+
+		agentManifestworkOnHyperHosted, err := CreateHohAgentManifestworkOnHyperHosted(tpl, agentConfigValues, hostingClusterName)
+		if err != nil {
+			return err
+		}
+
+		if err := applyManifestWork(ctx, c.workClient, c.workLister, agentManifestworkOnHyperHosted); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 

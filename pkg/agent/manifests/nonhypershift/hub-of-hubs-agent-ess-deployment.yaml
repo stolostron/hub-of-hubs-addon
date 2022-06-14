@@ -20,11 +20,11 @@ spec:
           imagePullPolicy: Always
           env:
             - name: HTTPCSSHost
-              value: "$CSS_HOST"
+              value: "{{ .CSSHost }}"
             - name: HTTPCSSPort
               value: "80"
             - name: DESTINATION_ID
-              value: "$LH_ID"
+              value: "{{ .LeadHubID }}"
             - name: LISTENING_TYPE
               value: unsecure
             - name: UNSECURE_LISTENING_PORT

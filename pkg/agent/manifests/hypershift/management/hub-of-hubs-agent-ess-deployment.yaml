@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sync-service-ess
+  namespace: {{ .HostedClusterName }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: sync-service-ess
+  template:
+    metadata:
+      labels:
+        name: sync-service-ess
+    spec:
+      serviceAccountName: sync-service-ess
+      containers:
+        - name: ess
+          image: quay.io/open-cluster-management-hub-of-hubs/leaf-hub-sync-service-ess:stable
+          imagePullPolicy: Always
+          env:
+            - name: HTTPCSSHost
+              value: "{{ .CSSHost }}"
+            - name: HTTPCSSPort
+              value: "80"
+            - name: DESTINATION_ID
+              value: "{{ .LeadHubID }}"
+            - name: LISTENING_TYPE
+              value: unsecure
+            - name: UNSECURE_LISTENING_PORT
+              value: "8090"
+            - name: HTTP_POLLING_INTERVAL
+              value: "5"

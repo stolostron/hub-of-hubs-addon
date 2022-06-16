@@ -20,11 +20,11 @@ spec:
           args:
             - '--zap-devel=true'
             - --pod-namespace=$(POD_NAMESPACE)
-            - --leaf-hub-name=$LH_ID
-            - --enforce-hoh-rbac=$ENFORCE_HOH_RBAC
-            - --transport-type=$TRANSPORT_TYPE
-            - --kafka-bootstrap-server=$KAFKA_BOOTSTRAP_SERVERS
-            - --kafka-ssl-ca=$KAFKA_SSL_CA
+            - --leaf-hub-name={{ .LeadHubID }}
+            - --enforce-hoh-rbac={{ .EnableHoHRBAC }}
+            - --transport-type={{ .TransportType}}
+            - --kafka-bootstrap-server={{ .KafkaBootstrapServer }}
+            - --kafka-ssl-ca={{ .KafkaCA }}
           imagePullPolicy: Always
           env:
             - name: POD_NAMESPACE

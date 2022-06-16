@@ -1,9 +1,8 @@
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: sync-service-ess
-  namespace: sync-service
+  namespace: {{ .HostedClusterName }}
 rules:
 - apiGroups:
   - security.openshift.io

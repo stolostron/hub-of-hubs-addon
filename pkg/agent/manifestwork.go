@@ -150,11 +150,11 @@ func CreateHohAgentManifestworkOnHyperHosted(tpl *template.Template, agentConfig
 }
 
 func EnsureManifestWork(existing, desired *workv1.ManifestWork) (bool, error) {
-	if !equality.Semantic.DeepDerivative(existing.Spec.DeleteOption, desired.Spec.DeleteOption) {
+	if !equality.Semantic.DeepDerivative(desired.Spec.DeleteOption, existing.Spec.DeleteOption) {
 		return true, nil
 	}
 
-	if !equality.Semantic.DeepDerivative(existing.Spec.ManifestConfigs, desired.Spec.ManifestConfigs) {
+	if !equality.Semantic.DeepDerivative(desired.Spec.ManifestConfigs, existing.Spec.ManifestConfigs) {
 		return true, nil
 	}
 
@@ -186,7 +186,10 @@ func EnsureManifestWork(existing, desired *workv1.ManifestWork) (bool, error) {
 			}
 		}
 
-		if !equality.Semantic.DeepDerivative(existingObj, desiredObj) {
+		metadata := existingObj.(map[string]interface{})["metadata"].(map[string]interface{})
+		metadata["creationTimestamp"] = nil
+		if !equality.Semantic.DeepDerivative(desiredObj, existingObj) {
+			klog.V(2).Infof("existing manifest object %d is not equal to the desired manifest object", i)
 			return true, nil
 		}
 	}

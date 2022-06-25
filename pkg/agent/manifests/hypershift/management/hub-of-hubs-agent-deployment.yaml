@@ -16,7 +16,7 @@ spec:
       serviceAccountName: hub-of-hubs-agent
       containers:
         - name: hub-of-hubs-agent
-          image: quay.io/open-cluster-management-hub-of-hubs/hub-of-hubs-agent:latest
+          image: quay.io/open-cluster-management-hub-of-hubs/hub-of-hubs-agent:{{ .AgentVersion }}
           args:
             - --kubeconfig=/var/run/secrets/hypershift/kubeconfig
             - '--zap-devel=true'

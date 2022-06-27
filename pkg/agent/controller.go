@@ -277,6 +277,12 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 }
 
 func (c *hohAgentController) getKafkaSSLCA() (string, string, error) {
+	if os.Getenv("KAFKA_BOOTSTRAP_SERVER") != "" {
+		kafkaBootstrapServer := os.Getenv("KAFKA_BOOTSTRAP_SERVER")
+		klog.V(2).Infof("Kafka bootstrap server is %s, certificate is %s", kafkaBootstrapServer, "")
+		return kafkaBootstrapServer, "", nil
+	}
+
 	kafkaGVR := schema.GroupVersionResource{
 		Group:    "kafka.strimzi.io",
 		Version:  "v1beta2",

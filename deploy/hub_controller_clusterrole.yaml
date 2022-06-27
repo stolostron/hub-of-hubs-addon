@@ -24,3 +24,6 @@ rules:
 - apiGroups: ["route.openshift.io"]
   resources: ["routes"]
   verbs: ["get"]
+- apiGroups: ["cluster.open-cluster-management.io"]
+  resources: ["hypershiftdeployments"]
+  verbs: ["get", "list", "watch"]

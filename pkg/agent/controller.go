@@ -119,7 +119,7 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		return err
 	}
 
-	hostingClusterName, hostedClusterName := "", ""
+	hostingClusterName, hostedClusterName, hypershiftDeploymentNamespace := "", "", ""
 	annotations := managedCluster.GetAnnotations()
 	if val, ok := annotations["import.open-cluster-management.io/klusterlet-deploy-mode"]; ok && val == "Hosted" {
 		hostingClusterName, ok = annotations["import.open-cluster-management.io/hosting-cluster-name"]
@@ -134,6 +134,7 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		if len(splits) != 2 || splits[1] == "" {
 			return fmt.Errorf("bad hypershiftdeployment name in managed cluster.")
 		}
+		hypershiftDeploymentNamespace = splits[0]
 		hostedClusterName = splits[1]
 	}
 
@@ -227,8 +228,22 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 		agentConfigValues.CSSHost = serverHost
 	}
 
-	if hostedClusterName != "" {
-		agentConfigValues.HostedClusterName = "clusters-" + hostedClusterName
+	if hostedClusterName != "" && hypershiftDeploymentNamespace != "" {
+		hypershiftDeploymentGVR := schema.GroupVersionResource{
+			Group:    "cluster.open-cluster-management.io",
+			Version:  "v1alpha1",
+			Resource: "hypershiftdeployments",
+		}
+		hypershiftDeploymentCR, err := c.dynamicClient.Resource(hypershiftDeploymentGVR).Namespace(hypershiftDeploymentNamespace).
+			Get(ctx, hostedClusterName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		hypershiftDeploymentSpec := hypershiftDeploymentCR.Object["spec"].(map[string]interface{})
+		hostingNamespace := hypershiftDeploymentSpec["hostingNamespace"].(string)
+
+		// set the hypershift hosted cluster name
+		agentConfigValues.HostedClusterName = hostingNamespace + "-" + hostedClusterName
 	}
 
 	var tpl *template.Template

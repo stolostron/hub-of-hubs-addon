@@ -13,10 +13,10 @@ spec:
       labels:
         name: hub-of-hubs-agent
     spec:
-      serviceAccountName: hub-of-hubs-agent
+      serviceAccountName: default
       containers:
         - name: hub-of-hubs-agent
-          image: quay.io/open-cluster-management-hub-of-hubs/hub-of-hubs-agent:latest
+          image: quay.io/open-cluster-management-hub-of-hubs/hub-of-hubs-agent:{{ .AgentVersion }}
           args:
             - --kubeconfig=/var/run/secrets/hypershift/kubeconfig
             - '--zap-devel=true'
@@ -45,7 +45,6 @@ spec:
           - mountPath: /var/run/secrets/hypershift
             name: kubeconfig
             readOnly: true
-      serviceAccountName: hub-of-hubs-agent
       volumes:
       - name: kubeconfig
         secret:

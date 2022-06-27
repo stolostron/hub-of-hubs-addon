@@ -5,7 +5,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: hub-of-hubs-agent
-  namespace: {{ .HostedClusterName }}
+  namespace: open-cluster-management
 roleRef:
   kind: ClusterRole
   name: hub-of-hubs-agent

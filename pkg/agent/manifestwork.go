@@ -264,13 +264,16 @@ func readFileInDir(manifestFS embed.FS, dir, filter string) (string, error) {
 			return err
 		}
 
-		if !d.IsDir() && !strings.Contains(file, filter) {
-			b, err := manifestFS.ReadFile(file)
-			if err != nil {
-				return err
+		if !d.IsDir() {
+			if filter == "" || !strings.Contains(file, filter) {
+				b, err := manifestFS.ReadFile(file)
+				if err != nil {
+					return err
+				}
+				res += string(b) + "\n---\n"
 			}
-			res += string(b) + "\n---\n"
 		}
+
 		return nil
 	})
 

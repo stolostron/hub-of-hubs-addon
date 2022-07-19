@@ -43,7 +43,7 @@ func CreateHohAgentManifestwork(tpl *template.Template, agentConfigValues *agent
 				return nil, err
 			}
 			if string(rawJSON) != "null" {
-				klog.V(2).Infof("raw JSON for nonhypershift:\n%s\n", rawJSON)
+				klog.V(3).Infof("raw JSON for nonhypershift:\n%s\n", rawJSON)
 				manifests = append(manifests, workv1.Manifest{RawExtension: runtime.RawExtension{Raw: rawJSON}})
 			}
 		}
@@ -85,7 +85,7 @@ func CreateHohAgentManifestworkOnHyperMgt(tpl *template.Template, agentConfigVal
 				return nil, err
 			}
 			if string(rawJSON) != "null" {
-				klog.V(2).Infof("raw JSON for hypershift management cluster:\n%s\n", rawJSON)
+				klog.V(3).Infof("raw JSON for hypershift management cluster:\n%s\n", rawJSON)
 				manifests = append(manifests, workv1.Manifest{RawExtension: runtime.RawExtension{Raw: rawJSON}})
 			}
 		}
@@ -127,7 +127,7 @@ func CreateHohAgentManifestworkOnHyperHosted(tpl *template.Template, agentConfig
 				return nil, err
 			}
 			if string(rawJSON) != "null" {
-				klog.V(2).Infof("raw JSON for hypershift hosted cluster:\n%s\n", rawJSON)
+				klog.V(3).Infof("raw JSON for hypershift hosted cluster:\n%s\n", rawJSON)
 				manifests = append(manifests, workv1.Manifest{RawExtension: runtime.RawExtension{Raw: rawJSON}})
 			}
 		}

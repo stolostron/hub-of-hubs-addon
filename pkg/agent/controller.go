@@ -37,7 +37,8 @@ const (
 )
 
 type agentConfig struct {
-	AgentVersion         string
+	AgentVersion 				 string
+	AgentImageRef        string
 	LeadHubID            string
 	EnableHoHRBAC        string
 	TransportType        string
@@ -205,12 +206,16 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 	if os.Getenv("TRANSPORT_TYPE") != "" {
 		transportType = os.Getenv("TRANSPORT_TYPE")
 	}
-
+	agentImageRef := fmt.Sprintf("quay.io/open-cluster-management-hub-of-hubs/hub-of-hubs-agent:%s", hohVersion)
+	if os.Getenv("HUB_OF_HUBS_AGENT_IMAGE_REF") != "" {
+		agentImageRef = os.Getenv("HUB_OF_HUBS_AGENT_IMAGE_REF")
+	}
 	agentConfigValues := &agentConfig{
 		AgentVersion:  hohVersion,
 		LeadHubID:     managedClusterName,
 		EnableHoHRBAC: enforceHoHRBAC,
 		TransportType: transportType,
+		AgentImageRef: agentImageRef,
 	}
 
 	if transportType == "kafka" {

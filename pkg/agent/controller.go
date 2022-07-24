@@ -299,7 +299,7 @@ func (c *hohAgentController) sync(ctx context.Context, syncCtx factory.SyncConte
 func (c *hohAgentController) getKafkaSSLCA() (string, string, error) {
 	kafkaBootstrapServer := os.Getenv("KAFKA_BOOTSTRAP_SERVER")
 	if kafkaBootstrapServer != "" {
-		klog.V(2).Infof("Kafka bootstrap server is %s, certificate is %s", kafkaBootstrapServer, "")
+		klog.V(3).Infof("Kafka bootstrap server is %s, certificate is %s", kafkaBootstrapServer, "")
 		return kafkaBootstrapServer, "", nil
 	}
 
@@ -319,7 +319,7 @@ func (c *hohAgentController) getKafkaSSLCA() (string, string, error) {
 	bootstrapServers := kafkaListeners[1].(map[string]interface{})["bootstrapServers"].(string)
 	certificates := kafkaListeners[1].(map[string]interface{})["certificates"].([]interface{})
 	certificate := base64.RawStdEncoding.EncodeToString([]byte(certificates[0].(string)))
-	klog.V(2).Infof("Kafka bootstrap server is %s, certificate is %s", bootstrapServers, certificate)
+	klog.V(3).Infof("Kafka bootstrap server is %s, certificate is %s", bootstrapServers, certificate)
 	return bootstrapServers, certificate, nil
 }
 

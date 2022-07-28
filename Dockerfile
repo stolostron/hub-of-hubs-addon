@@ -8,7 +8,7 @@ RUN make build --warn-undefined-variables
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 ENV USER_UID=10001
 
-COPY --from=builder /go/src/stolostron/hub-of-hubs-addon-controller/ /
+COPY --from=builder /go/src/stolostron/hub-of-hubs-addon-controller/bin/ /
 COPY --from=builder /go/src/stolostron/hub-of-hubs-addon-controller/pkg/agent/manifests /manifests
 RUN microdnf update && microdnf clean all
 
